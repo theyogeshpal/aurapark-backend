@@ -1,81 +1,89 @@
-const db = require('../db/data');
+const Parking = require('../models/Parking');
 
-// ─── PUBLIC ─────────────────────────────────────────────
-exports.getAllVerified = (req, res) => {
-  const { city, type, q } = req.query;
-  let result = db.parkings.filter(p => p.verification);
-  if (city) result = result.filter(p => p.city.toLowerCase().includes(city.toLowerCase()));
-  if (type) result = result.filter(p => p.type === type || p.type === 'Both');
-  if (q) result = result.filter(p => p.parkingname.toLowerCase().includes(q.toLowerCase()) || p.city.toLowerCase().includes(q.toLowerCase()));
-  res.json({ success: true, count: result.length, data: result });
+// ─── PUBLIC ──────────────────────────────────────────────
+exports.getAllVerified = async (req, res) => {
+  try {
+    const { city, type, q } = req.query;
+    const filter = { verification: true };
+    if (city) filter.city = { $regex: city, $options: 'i' };
+    if (type) filter.$or = [{ type }, { type: 'Both' }];
+    if (q) filter.$or = [{ parkingname: { $regex: q, $options: 'i' } }, { city: { $regex: q, $options: 'i' } }];
+    const parkings = await Parking.find(filter);
+    res.json({ success: true, count: parkings.length, data: parkings });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-exports.getById = (req, res) => {
-  const parking = db.parkings.find(p => p.id === parseInt(req.params.id));
-  if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
-  res.json({ success: true, data: parking });
+exports.getById = async (req, res) => {
+  try {
+    const parking = await Parking.findById(req.params.id);
+    if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
+    res.json({ success: true, data: parking });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// ─── PUBLIC — Add new parking request (from website) ────
-exports.addParkingRequest = (req, res) => {
-  const { name, email, mobile, parkingName, address, city, state, map, type, carSpace, bikeSpace, hourRate, operatingHours, covered, evCharging } = req.body;
-  if (!name || !email || !mobile || !address || !city || !state || !map || !hourRate || !operatingHours)
-    return res.status(400).json({ success: false, message: 'All required fields must be filled' });
+exports.addParkingRequest = async (req, res) => {
+  try {
+    const { name, email, mobile, parkingName, address, city, state, map, type, carSpace, bikeSpace, hourRate, operatingHours, covered, evCharging } = req.body;
+    if (!name || !email || !mobile || !address || !city || !state || !map || !hourRate || !operatingHours)
+      return res.status(400).json({ success: false, message: 'All required fields must be filled' });
 
-  const parking = {
-    id: db.nextId('parkings'),
-    parkingname: parkingName || `${name}'s Parking`,
-    ownername: name, email, mobile, address, city, state, map,
-    type: type || 'Both',
-    bikespace: bikeSpace || '0',
-    carspace: carSpace || '0',
-    hourrate: hourRate,
-    operatinghours: operatingHours,
-    photo: null,
-    covered: covered || false,
-    evcharging: evCharging || false,
-    verification: false,
-    createdAt: new Date()
-  };
-  db.parkings.push(parking);
-  res.status(201).json({ success: true, message: 'Parking request submitted for review', data: parking });
+    const parking = await Parking.create({
+      parkingname: parkingName || `${name}'s Parking`,
+      ownername: name, email, mobile, address, city, state, map,
+      type: type || 'Both', bikespace: bikeSpace || '0', carspace: carSpace || '0',
+      hourrate: hourRate, operatinghours: operatingHours,
+      covered: covered || false, evcharging: evCharging || false, verification: false
+    });
+    res.status(201).json({ success: true, message: 'Parking request submitted for review', data: parking });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
 // ─── ADMIN ───────────────────────────────────────────────
-exports.getAdminParking = (req, res) => {
-  const parking = db.parkings.find(p => p.id === req.user.parkingId);
-  if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
-  res.json({ success: true, data: parking });
+exports.getAdminParking = async (req, res) => {
+  try {
+    const parking = await Parking.findById(req.user.parkingId);
+    if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
+    res.json({ success: true, data: parking });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-exports.updateAdminParking = (req, res) => {
-  const idx = db.parkings.findIndex(p => p.id === req.user.parkingId);
-  if (idx === -1) return res.status(404).json({ success: false, message: 'Parking not found' });
-  const allowed = ['parkingname', 'hourrate', 'operatinghours', 'address', 'city', 'state', 'map', 'bikespace', 'carspace', 'covered', 'evcharging'];
-  allowed.forEach(key => { if (req.body[key] !== undefined) db.parkings[idx][key] = req.body[key]; });
-  res.json({ success: true, message: 'Parking updated', data: db.parkings[idx] });
+exports.updateAdminParking = async (req, res) => {
+  try {
+    const allowed = ['parkingname', 'hourrate', 'operatinghours', 'address', 'city', 'state', 'map', 'bikespace', 'carspace', 'covered', 'evcharging'];
+    const update = {};
+    allowed.forEach(k => { if (req.body[k] !== undefined) update[k] = req.body[k]; });
+    const parking = await Parking.findByIdAndUpdate(req.user.parkingId, update, { new: true });
+    res.json({ success: true, message: 'Parking updated', data: parking });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
 // ─── SUPERADMIN ──────────────────────────────────────────
-exports.getAllParkings = (req, res) => {
-  res.json({ success: true, count: db.parkings.length, data: db.parkings });
+exports.getAllParkings = async (req, res) => {
+  try {
+    const parkings = await Parking.find();
+    res.json({ success: true, count: parkings.length, data: parkings });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-exports.getPendingParkings = (req, res) => {
-  const pending = db.parkings.filter(p => !p.verification);
-  res.json({ success: true, count: pending.length, data: pending });
+exports.getPendingParkings = async (req, res) => {
+  try {
+    const pending = await Parking.find({ verification: false });
+    res.json({ success: true, count: pending.length, data: pending });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-exports.verifyParking = (req, res) => {
-  const idx = db.parkings.findIndex(p => p.id === parseInt(req.params.id));
-  if (idx === -1) return res.status(404).json({ success: false, message: 'Parking not found' });
-  db.parkings[idx].verification = true;
-  res.json({ success: true, message: 'Parking verified successfully', data: db.parkings[idx] });
+exports.verifyParking = async (req, res) => {
+  try {
+    const parking = await Parking.findByIdAndUpdate(req.params.id, { verification: true }, { new: true });
+    if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
+    res.json({ success: true, message: 'Parking verified successfully', data: parking });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-exports.deleteParking = (req, res) => {
-  const idx = db.parkings.findIndex(p => p.id === parseInt(req.params.id));
-  if (idx === -1) return res.status(404).json({ success: false, message: 'Parking not found' });
-  db.parkings.splice(idx, 1);
-  res.json({ success: true, message: 'Parking deleted successfully' });
+exports.deleteParking = async (req, res) => {
+  try {
+    const parking = await Parking.findByIdAndDelete(req.params.id);
+    if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
+    res.json({ success: true, message: 'Parking deleted successfully' });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };

@@ -1,75 +1,76 @@
-const db = require('../db/data');
+const DailyParking = require('../models/DailyParking');
+const Parking = require('../models/Parking');
 
-// Get all active (currently parked) vehicles for admin's parking
-exports.getActive = (req, res) => {
-  const active = db.dailyParkings.filter(d => d.parkingId === req.user.parkingId && d.outtime === '-');
-  res.json({ success: true, count: active.length, data: active });
+exports.getActive = async (req, res) => {
+  try {
+    const active = await DailyParking.find({ parkingId: req.user.parkingId, outtime: '-' });
+    res.json({ success: true, count: active.length, data: active });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// Get full history for admin's parking
-exports.getHistory = (req, res) => {
-  const history = db.dailyParkings.filter(d => d.parkingId === req.user.parkingId);
-  res.json({ success: true, count: history.length, data: history });
+exports.getHistory = async (req, res) => {
+  try {
+    const history = await DailyParking.find({ parkingId: req.user.parkingId }).sort({ createdAt: -1 });
+    res.json({ success: true, count: history.length, data: history });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// Park a new vehicle (entry)
-exports.parkVehicle = (req, res) => {
-  const { vehiclenumber, ownername, type } = req.body;
-  if (!vehiclenumber || !ownername || !type) return res.status(400).json({ success: false, message: 'Vehicle number, owner name and type required' });
+exports.parkVehicle = async (req, res) => {
+  try {
+    const { vehiclenumber, ownername, type } = req.body;
+    if (!vehiclenumber || !ownername || !type) return res.status(400).json({ success: false, message: 'Vehicle number, owner name and type required' });
 
-  // Check if already parked
-  const alreadyParked = db.dailyParkings.find(d => d.vehiclenumber.toUpperCase() === vehiclenumber.toUpperCase() && d.outtime === '-');
-  if (alreadyParked) return res.status(409).json({ success: false, message: 'Vehicle is already parked' });
+    const alreadyParked = await DailyParking.findOne({ vehiclenumber: vehiclenumber.toUpperCase(), outtime: '-' });
+    if (alreadyParked) return res.status(409).json({ success: false, message: 'Vehicle is already parked' });
 
-  const now = new Date();
-  const entry = {
-    id: db.nextId('dailyParkings'),
-    parkingId: req.user.parkingId,
-    vehiclenumber: vehiclenumber.toUpperCase(),
-    ownername,
-    type,
-    date: now.toISOString().split('T')[0],
-    intime: now.toTimeString().substring(0, 5),
-    outtime: '-',
-    amount: null
-  };
-  db.dailyParkings.push(entry);
-  res.status(201).json({ success: true, message: `Vehicle ${entry.vehiclenumber} parked successfully`, data: entry });
+    const now = new Date();
+    const entry = await DailyParking.create({
+      parkingId: req.user.parkingId,
+      vehiclenumber: vehiclenumber.toUpperCase(),
+      ownername, type,
+      date: now.toISOString().split('T')[0],
+      intime: now.toTimeString().substring(0, 5),
+      outtime: '-', amount: null
+    });
+    res.status(201).json({ success: true, message: `Vehicle ${entry.vehiclenumber} parked successfully`, data: entry });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// Exit vehicle (checkout)
-exports.exitVehicle = (req, res) => {
-  const idx = db.dailyParkings.findIndex(d => d.id === parseInt(req.params.id) && d.parkingId === req.user.parkingId);
-  if (idx === -1) return res.status(404).json({ success: false, message: 'Record not found' });
-  if (db.dailyParkings[idx].outtime !== '-') return res.status(400).json({ success: false, message: 'Vehicle already checked out' });
+exports.exitVehicle = async (req, res) => {
+  try {
+    const record = await DailyParking.findOne({ _id: req.params.id, parkingId: req.user.parkingId });
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    if (record.outtime !== '-') return res.status(400).json({ success: false, message: 'Vehicle already checked out' });
 
-  const parking = db.parkings.find(p => p.id === req.user.parkingId);
-  const now = new Date();
-  const outtime = now.toTimeString().substring(0, 5);
+    const parking = await Parking.findById(req.user.parkingId);
+    const now = new Date();
+    const outtime = now.toTimeString().substring(0, 5);
 
-  // Calculate amount
-  const [inH, inM] = db.dailyParkings[idx].intime.split(':').map(Number);
-  const [outH, outM] = outtime.split(':').map(Number);
-  const hours = Math.max(1, Math.ceil(((outH * 60 + outM) - (inH * 60 + inM)) / 60));
-  const amount = hours * parseInt(parking?.hourrate || 20);
+    const [inH, inM] = record.intime.split(':').map(Number);
+    const [outH, outM] = outtime.split(':').map(Number);
+    const hours = Math.max(1, Math.ceil(((outH * 60 + outM) - (inH * 60 + inM)) / 60));
+    const amount = hours * parseInt(parking?.hourrate || 20);
 
-  db.dailyParkings[idx].outtime = outtime;
-  db.dailyParkings[idx].amount = amount;
-  res.json({ success: true, message: 'Vehicle checked out', data: db.dailyParkings[idx] });
+    record.outtime = outtime;
+    record.amount = amount;
+    await record.save();
+    res.json({ success: true, message: 'Vehicle checked out', data: record });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// Delete a history record
-exports.deleteRecord = (req, res) => {
-  const idx = db.dailyParkings.findIndex(d => d.id === parseInt(req.params.id) && d.parkingId === req.user.parkingId);
-  if (idx === -1) return res.status(404).json({ success: false, message: 'Record not found' });
-  db.dailyParkings.splice(idx, 1);
-  res.json({ success: true, message: 'Record deleted' });
+exports.deleteRecord = async (req, res) => {
+  try {
+    const record = await DailyParking.findOneAndDelete({ _id: req.params.id, parkingId: req.user.parkingId });
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    res.json({ success: true, message: 'Record deleted' });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// Get receipt/bill for a record
-exports.getReceipt = (req, res) => {
-  const record = db.dailyParkings.find(d => d.id === parseInt(req.params.id) && d.parkingId === req.user.parkingId);
-  if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
-  const parking = db.parkings.find(p => p.id === req.user.parkingId);
-  res.json({ success: true, data: { ...record, parkingName: parking?.parkingname, parkingAddress: parking?.address } });
+exports.getReceipt = async (req, res) => {
+  try {
+    const record = await DailyParking.findOne({ _id: req.params.id, parkingId: req.user.parkingId });
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    const parking = await Parking.findById(req.user.parkingId);
+    res.json({ success: true, data: { ...record.toObject(), parkingName: parking?.parkingname, parkingAddress: parking?.address } });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };

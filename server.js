@@ -2,7 +2,11 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const connectDB = require('./db/connect');
 const app = express();
+
+// Connect MongoDB
+connectDB();
 
 // Middleware
 app.use(cors({ origin: '*' }));
@@ -19,14 +23,10 @@ app.use('/api/admin', require('./routes/admin.routes'));
 app.use('/api/superadmin', require('./routes/superadmin.routes'));
 
 // Health check
-app.get('/', (req, res) => {
-  res.json({ message: 'AuraPark API is running', version: '1.0.0' });
-});
+app.get('/', (req, res) => res.json({ message: 'AuraPark API is running', version: '1.0.0' }));
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
-});
+// 404
+app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`AuraPark API running on port ${PORT}`));

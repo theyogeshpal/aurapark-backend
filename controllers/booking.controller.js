@@ -1,53 +1,50 @@
-const db = require('../db/data');
+const Booking = require('../models/Booking');
+const Parking = require('../models/Parking');
 
-// Get user's bookings
-exports.getUserBookings = (req, res) => {
-  const { status } = req.query;
-  let bookings = db.bookings.filter(b => b.userId === req.user.id);
-  if (status) bookings = bookings.filter(b => b.status === status);
-  res.json({ success: true, count: bookings.length, data: bookings });
+exports.getUserBookings = async (req, res) => {
+  try {
+    const filter = { userId: req.user.id };
+    if (req.query.status) filter.status = req.query.status;
+    const bookings = await Booking.find(filter).sort({ createdAt: -1 });
+    res.json({ success: true, count: bookings.length, data: bookings });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// Create a new booking
-exports.createBooking = (req, res) => {
-  const { parkingId, date, time, duration } = req.body;
-  if (!parkingId || !date || !time || !duration) return res.status(400).json({ success: false, message: 'parkingId, date, time and duration are required' });
+exports.createBooking = async (req, res) => {
+  try {
+    const { parkingId, date, time, duration } = req.body;
+    if (!parkingId || !date || !time || !duration) return res.status(400).json({ success: false, message: 'parkingId, date, time and duration are required' });
 
-  const parking = db.parkings.find(p => p.id === parseInt(parkingId) && p.verification);
-  if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
+    const parking = await Parking.findOne({ _id: parkingId, verification: true });
+    if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
 
-  const totalPrice = parseInt(duration) * parseInt(parking.hourrate);
-  const booking = {
-    id: db.nextId('bookings'),
-    userId: req.user.id,
-    parkingId: parseInt(parkingId),
-    parkingName: parking.parkingname,
-    location: `${parking.city}, ${parking.state}`,
-    type: parking.type === 'Bike' ? 'BIKE PARKING' : 'CAR PARKING',
-    date, time,
-    duration: parseInt(duration),
-    totalPrice,
-    status: 'ongoing',
-    rating: null,
-    image: parking.photo,
-    createdAt: new Date()
-  };
-  db.bookings.push(booking);
-  res.status(201).json({ success: true, message: 'Booking created successfully', data: booking });
+    const totalPrice = parseInt(duration) * parseInt(parking.hourrate);
+    const booking = await Booking.create({
+      userId: req.user.id, parkingId,
+      parkingName: parking.parkingname,
+      location: `${parking.city}, ${parking.state}`,
+      type: parking.type === 'Bike' ? 'BIKE PARKING' : 'CAR PARKING',
+      date, time, duration: parseInt(duration), totalPrice, status: 'ongoing'
+    });
+    res.status(201).json({ success: true, message: 'Booking created successfully', data: booking });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// Cancel a booking
-exports.cancelBooking = (req, res) => {
-  const idx = db.bookings.findIndex(b => b.id === parseInt(req.params.id) && b.userId === req.user.id);
-  if (idx === -1) return res.status(404).json({ success: false, message: 'Booking not found' });
-  if (db.bookings[idx].status !== 'ongoing') return res.status(400).json({ success: false, message: 'Only ongoing bookings can be cancelled' });
-  db.bookings[idx].status = 'cancelled';
-  res.json({ success: true, message: 'Booking cancelled', data: db.bookings[idx] });
+exports.cancelBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (booking.status !== 'ongoing') return res.status(400).json({ success: false, message: 'Only ongoing bookings can be cancelled' });
+    booking.status = 'cancelled';
+    await booking.save();
+    res.json({ success: true, message: 'Booking cancelled', data: booking });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// Get single booking detail
-exports.getBookingById = (req, res) => {
-  const booking = db.bookings.find(b => b.id === parseInt(req.params.id) && b.userId === req.user.id);
-  if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-  res.json({ success: true, data: booking });
+exports.getBookingById = async (req, res) => {
+  try {
+    const booking = await Booking.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    res.json({ success: true, data: booking });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
