@@ -1,4 +1,6 @@
 const Parking = require('../models/Parking');
+const Admin = require('../models/Admin');
+const bcrypt = require('bcryptjs');
 
 // ─── PUBLIC ──────────────────────────────────────────────
 exports.getAllVerified = async (req, res) => {
@@ -76,7 +78,22 @@ exports.verifyParking = async (req, res) => {
   try {
     const parking = await Parking.findByIdAndUpdate(req.params.id, { verification: true }, { new: true });
     if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
-    res.json({ success: true, message: 'Parking verified successfully', data: parking });
+
+    // Create admin account for parking owner if not already exists
+    const existing = await Admin.findOne({ email: parking.email });
+    if (!existing) {
+      const hashed = await bcrypt.hash('admin123', 10);
+      await Admin.create({
+        name: parking.ownername,
+        email: parking.email,
+        password: hashed,
+        role: 'admin',
+        parkingId: parking._id,
+        city: parking.city
+      });
+    }
+
+    res.json({ success: true, message: 'Parking verified and admin account created', data: parking });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
@@ -84,6 +101,10 @@ exports.deleteParking = async (req, res) => {
   try {
     const parking = await Parking.findByIdAndDelete(req.params.id);
     if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
-    res.json({ success: true, message: 'Parking deleted successfully' });
+
+    // Delete associated admin account
+    await Admin.findOneAndDelete({ email: parking.email, role: 'admin' });
+
+    res.json({ success: true, message: 'Parking and associated admin deleted' });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };

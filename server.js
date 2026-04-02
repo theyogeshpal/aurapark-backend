@@ -21,6 +21,7 @@ app.use('/api/daily-parking', require('./routes/dailyParking.routes'));
 app.use('/api/contact', require('./routes/contact.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
 app.use('/api/superadmin', require('./routes/superadmin.routes'));
+app.use('/api/notifications', require('./routes/notification.routes'));
 
 // Health check
 app.get('/', (req, res) => res.json({ message: 'AuraPark API is running', version: '1.0.0' }));
