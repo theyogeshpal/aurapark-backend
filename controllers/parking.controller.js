@@ -29,12 +29,16 @@ exports.addParkingRequest = async (req, res) => {
     if (!name || !email || !mobile || !address || !city || !state || !map || !hourRate || !operatingHours)
       return res.status(400).json({ success: false, message: 'All required fields must be filled' });
 
+    const photoPath = req.file ? `/uploads/${req.file.filename}` : null;
+
     const parking = await Parking.create({
       parkingname: parkingName || `${name}'s Parking`,
       ownername: name, email, mobile, address, city, state, map,
       type: type || 'Both', bikespace: bikeSpace || '0', carspace: carSpace || '0',
       hourrate: hourRate, operatinghours: operatingHours,
-      covered: covered || false, evcharging: evCharging || false, verification: false
+      covered: covered === 'true' || covered === true,
+      evcharging: evCharging === 'true' || evCharging === true,
+      photo: photoPath, verification: false
     });
     res.status(201).json({ success: true, message: 'Parking request submitted for review', data: parking });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
@@ -43,6 +47,7 @@ exports.addParkingRequest = async (req, res) => {
 // ─── ADMIN ───────────────────────────────────────────────
 exports.getAdminParking = async (req, res) => {
   try {
+    if (!req.user.parkingId) return res.status(404).json({ success: false, message: 'No parking linked to this admin account' });
     const parking = await Parking.findById(req.user.parkingId);
     if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
     res.json({ success: true, data: parking });
@@ -51,7 +56,7 @@ exports.getAdminParking = async (req, res) => {
 
 exports.updateAdminParking = async (req, res) => {
   try {
-    const allowed = ['parkingname', 'hourrate', 'operatinghours', 'address', 'city', 'state', 'map', 'bikespace', 'carspace', 'covered', 'evcharging'];
+    const allowed = ['parkingname', 'hourrate', 'operatinghours', 'address', 'city', 'state', 'map', 'bikespace', 'carspace', 'covered', 'evcharging', 'qrCode'];
     const update = {};
     allowed.forEach(k => { if (req.body[k] !== undefined) update[k] = req.body[k]; });
     const parking = await Parking.findByIdAndUpdate(req.user.parkingId, update, { new: true });

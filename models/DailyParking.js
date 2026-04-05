@@ -9,6 +9,11 @@ const dailyParkingSchema = new mongoose.Schema({
   intime:        { type: String, required: true },
   outtime:       { type: String, default: '-' },
   amount:        { type: Number, default: null },
+  source:        { type: String, enum: ['walkin', 'online'], default: 'walkin' },
+  bookingRef:    { type: String, default: null },
+  bookingId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
+  duration:      { type: Number, default: null },
+  paymentStatus: { type: String, enum: ['pending', 'completed'], default: 'pending' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('DailyParking', dailyParkingSchema);

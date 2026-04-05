@@ -4,6 +4,7 @@ const { verifyToken } = require('../middleware/auth.middleware');
 
 router.get('/', verifyToken, ctrl.getUserBookings);
 router.post('/', verifyToken, ctrl.createBooking);
+router.get('/:id/receipt', verifyToken, ctrl.getReceipt);
 router.get('/:id', verifyToken, ctrl.getBookingById);
 router.put('/:id/cancel', verifyToken, ctrl.cancelBooking);
 

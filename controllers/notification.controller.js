@@ -32,7 +32,11 @@ exports.deleteNotification = async (req, res) => {
 exports.getAdminNotifications = async (req, res) => {
   try {
     const adminId = req.user.id;
-    const notifs = await Notification.find({ target: { $in: ['admin', 'both'] } }).sort({ createdAt: -1 });
+    const parkingObjId = req.user.parkingId ? new mongoose.Types.ObjectId(req.user.parkingId) : null;
+    const notifs = await Notification.find({
+      target: { $in: ['admin', 'both'] },
+      $or: [{ parkingId: null }, ...(parkingObjId ? [{ parkingId: parkingObjId }] : [])]
+    }).sort({ createdAt: -1 });
     const data = notifs.map(n => ({
       ...n.toObject(),
       isRead: n.readBy.some(id => id.toString() === adminId)
@@ -45,7 +49,11 @@ exports.getAdminNotifications = async (req, res) => {
 exports.getUserNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
-    const notifs = await Notification.find({ target: { $in: ['user', 'both'] } }).sort({ createdAt: -1 });
+    const userObjId = new mongoose.Types.ObjectId(userId);
+    const notifs = await Notification.find({
+      target: { $in: ['user', 'both'] },
+      $or: [{ userId: null }, { userId: userObjId }]
+    }).sort({ createdAt: -1 });
     const data = notifs.map(n => ({
       ...n.toObject(),
       isRead: n.readBy.some(id => id.toString() === userId)

@@ -1,5 +1,47 @@
 const DailyParking = require('../models/DailyParking');
 const Parking = require('../models/Parking');
+const Booking = require('../models/Booking');
+const User = require('../models/User');
+
+exports.getPreBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({ parkingId: req.user.parkingId, status: 'prebooked' }).sort({ date: 1, time: 1 });
+    res.json({ success: true, count: bookings.length, data: bookings });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+};
+
+exports.checkIn = async (req, res) => {
+  try {
+    const booking = await Booking.findOne({ _id: req.params.id, parkingId: req.user.parkingId, status: 'prebooked' });
+    if (!booking) return res.status(404).json({ success: false, message: 'Pre-booking not found' });
+
+    const user = await User.findById(booking.userId).select('name');
+    const now = new Date();
+    const actualInTime = now.toTimeString().substring(0, 5);
+    const actualDate = now.toISOString().split('T')[0];
+
+    const dailyRecord = await DailyParking.create({
+      parkingId: req.user.parkingId,
+      vehiclenumber: booking.vehicleNumber || booking.vehicleType,
+      ownername: user?.name || 'Online User',
+      type: booking.vehicleType,
+      date: actualDate,
+      intime: actualInTime,
+      outtime: '-',
+      amount: booking.totalPrice,
+      source: 'online',
+      bookingRef: booking.bookingRef,
+      bookingId: booking._id,
+      duration: booking.duration
+    });
+
+    booking.status = 'ongoing';
+    booking.dailyParkingId = dailyRecord._id;
+    await booking.save();
+
+    res.json({ success: true, message: 'Check-in successful', data: dailyRecord });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+};
 
 exports.getActive = async (req, res) => {
   try {
@@ -55,6 +97,16 @@ exports.exitVehicle = async (req, res) => {
     record.amount = amount;
     await record.save();
     res.json({ success: true, message: 'Vehicle checked out', data: record });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+};
+
+exports.completePayment = async (req, res) => {
+  try {
+    const record = await DailyParking.findOne({ _id: req.params.id, parkingId: req.user.parkingId });
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    record.paymentStatus = 'completed';
+    await record.save();
+    res.json({ success: true, message: 'Payment marked as completed', data: record });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 

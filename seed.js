@@ -36,39 +36,12 @@ const seed = async () => {
   ]);
   console.log(`✓ Seeded ${superAdmins.length} superadmins`);
 
-  // ── Parkings ───────────────────────────────────────────
-  const parkings = await Parking.insertMany([
-    { parkingname: 'Central City Parking', ownername: 'Rajesh Kumar',  email: 'rajesh@email.com',  mobile: '9876543210', address: '123 MG Road, Near City Mall',      city: 'Delhi',    state: 'Delhi',       map: 'https://maps.google.com/?q=Delhi',     type: 'Both', bikespace: '50', carspace: '30', hourrate: '20', operatinghours: '6AM - 11PM', covered: true,  evcharging: false, verification: true  },
-    { parkingname: 'Green Park Parking',   ownername: 'Sunita Sharma', email: 'sunita@email.com',  mobile: '9765432109', address: '45 Sector 18, Near Metro',          city: 'Noida',    state: 'UP',          map: 'https://maps.google.com/?q=Noida',     type: 'Bike', bikespace: '40', carspace: '0',  hourrate: '15', operatinghours: '7AM - 10PM', covered: false, evcharging: false, verification: true  },
-    { parkingname: 'Mall Road Parking',    ownername: 'Amit Verma',    email: 'amit@email.com',    mobile: '9654321098', address: '78 DLF Phase 2, Cyber Hub',         city: 'Gurgaon',  state: 'Haryana',     map: 'https://maps.google.com/?q=Gurgaon',   type: 'Car',  bikespace: '0',  carspace: '40', hourrate: '25', operatinghours: '24 Hours',   covered: true,  evcharging: true,  verification: true  },
-    { parkingname: 'Vikram Parking Zone',  ownername: 'Vikram Nair',   email: 'vikram@email.com',  mobile: '9543210987', address: '12 Andheri West, Near Station',     city: 'Mumbai',   state: 'Maharashtra', map: 'https://maps.google.com/?q=Mumbai',    type: 'Both', bikespace: '30', carspace: '20', hourrate: '18', operatinghours: '8AM - 9PM',  covered: false, evcharging: false, verification: false },
-    { parkingname: 'Patel Parking Hub',    ownername: 'Meena Patel',   email: 'meena@email.com',   mobile: '9432109876', address: '56 CG Road, Navrangpura',           city: 'Ahmedabad',state: 'Gujarat',     map: 'https://maps.google.com/?q=Ahmedabad', type: 'Bike', bikespace: '60', carspace: '0',  hourrate: '12', operatinghours: '6AM - 10PM', covered: false, evcharging: false, verification: false },
-  ]);
-  console.log(`✓ Seeded ${parkings.length} parkings`);
 
-  // ── Admin (linked to first parking) ───────────────────
-  const admins = await Admin.insertMany([
-    { name: 'Admin User', email: 'admin@aurapark.in', password: bcrypt.hashSync('admin123', 10), role: 'admin', parkingId: parkings[0]._id, city: 'Delhi' },
-  ]);
-  console.log(`✓ Seeded ${admins.length} admins`);
 
-  // ── Daily Parkings ─────────────────────────────────────
-  const dailyParkings = await DailyParking.insertMany([
-    { parkingId: parkings[0]._id, vehiclenumber: 'UP32AB1234', ownername: 'Rahul Sharma', type: '2W', date: '2025-01-15', intime: '09:30', outtime: '11:45', amount: 50  },
-    { parkingId: parkings[0]._id, vehiclenumber: 'DL01CA5678', ownername: 'Priya Singh',  type: '4W', date: '2025-01-15', intime: '10:15', outtime: '14:30', amount: 120 },
-    { parkingId: parkings[0]._id, vehiclenumber: 'MH12DE9012', ownername: 'Amit Kumar',   type: '2W', date: '2025-01-15', intime: '11:00', outtime: '-',     amount: null },
-    { parkingId: parkings[0]._id, vehiclenumber: 'RJ14GH3456', ownername: 'Sunita Devi',  type: '4W', date: '2025-01-14', intime: '08:00', outtime: '10:00', amount: 80  },
-    { parkingId: parkings[0]._id, vehiclenumber: 'KA05IJ7890', ownername: 'Vikram Nair',  type: '2W', date: '2025-01-14', intime: '13:00', outtime: '15:30', amount: 60  },
-  ]);
-  console.log(`✓ Seeded ${dailyParkings.length} daily parking records`);
 
-  // ── Bookings ───────────────────────────────────────────
-  const bookings = await Booking.insertMany([
-    { userId: users[0]._id, parkingId: parkings[0]._id, parkingName: 'Central City Parking', location: 'Delhi',   type: 'CAR PARKING',  date: '2025-01-15', time: '10:00', duration: 3, totalPrice: 60,  status: 'completed', rating: 4.5 },
-    { userId: users[0]._id, parkingId: parkings[1]._id, parkingName: 'Green Park Parking',   location: 'Noida',   type: 'BIKE PARKING', date: '2025-01-16', time: '09:00', duration: 2, totalPrice: 30,  status: 'ongoing',   rating: 4.2 },
-    { userId: users[0]._id, parkingId: parkings[2]._id, parkingName: 'Mall Road Parking',    location: 'Gurgaon', type: 'CAR PARKING',  date: '2025-01-10', time: '14:00', duration: 4, totalPrice: 100, status: 'cancelled', rating: 4.8 },
-  ]);
-  console.log(`✓ Seeded ${bookings.length} bookings`);
+
+
+
 
   // ── Contacts ───────────────────────────────────────────
   const contacts = await Contact.insertMany([
