@@ -29,7 +29,9 @@ exports.addParkingRequest = async (req, res) => {
     if (!name || !email || !mobile || !address || !city || !state || !map || !hourRate || !operatingHours)
       return res.status(400).json({ success: false, message: 'All required fields must be filled' });
 
-    const photoPath = req.file ? `/uploads/${req.file.filename}` : null;
+    const photoPath = req.file
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+      : null;
 
     const parking = await Parking.create({
       parkingname: parkingName || `${name}'s Parking`,
