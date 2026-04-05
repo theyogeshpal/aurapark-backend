@@ -11,6 +11,9 @@ exports.getDashboard = async (req, res) => {
     const totalContacts = await Contact.countDocuments();
     const totalUsers = await User.countDocuments();
     const recentFeedback = await Contact.find().sort({ createdAt: -1 }).limit(5);
+    const pendingParkings = await Parking.find({ verification: false }).sort({ createdAt: -1 }).limit(5);
+    const totalRevenue = await DailyParking.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }]);
+    const totalBookings = await (require('../models/Booking')).countDocuments();
 
     const monthlyData = [];
     for (let i = 11; i >= 0; i--) {
@@ -23,7 +26,11 @@ exports.getDashboard = async (req, res) => {
       monthlyData.push({ month, count });
     }
 
-    res.json({ success: true, data: { totalSpots, pendingRequests, totalContacts, totalUsers, recentFeedback, monthlyChart: monthlyData } });
+    res.json({ success: true, data: {
+      totalSpots, pendingRequests, totalContacts, totalUsers,
+      totalRevenue: totalRevenue[0]?.total || 0, totalBookings,
+      recentFeedback, pendingParkings, monthlyChart: monthlyData
+    }});
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 

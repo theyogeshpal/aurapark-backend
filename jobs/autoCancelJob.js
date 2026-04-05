@@ -5,7 +5,7 @@ const Notification = require('../models/Notification');
 // Runs every minute — checks prebooked bookings past 30 min grace period
 cron.schedule('* * * * *', async () => {
   try {
-    const now = new Date();
+    const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000); // IST
     const prebookedList = await Booking.find({ status: 'prebooked' });
 
     for (const booking of prebookedList) {

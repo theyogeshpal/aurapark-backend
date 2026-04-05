@@ -3,6 +3,14 @@ const Parking = require('../models/Parking');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
 
+// IST = UTC + 5:30
+const getIST = () => {
+  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  const time = now.toISOString().substring(11, 16); // HH:MM
+  const date = now.toISOString().split('T')[0];      // YYYY-MM-DD
+  return { time, date, now };
+};
+
 exports.getPreBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ parkingId: req.user.parkingId, status: 'prebooked' }).sort({ date: 1, time: 1 });
@@ -16,9 +24,7 @@ exports.checkIn = async (req, res) => {
     if (!booking) return res.status(404).json({ success: false, message: 'Pre-booking not found' });
 
     const user = await User.findById(booking.userId).select('name');
-    const now = new Date();
-    const actualInTime = now.toTimeString().substring(0, 5);
-    const actualDate = now.toISOString().split('T')[0];
+    const { time: actualInTime, date: actualDate } = getIST();
 
     const dailyRecord = await DailyParking.create({
       parkingId: req.user.parkingId,
@@ -65,13 +71,13 @@ exports.parkVehicle = async (req, res) => {
     const alreadyParked = await DailyParking.findOne({ vehiclenumber: vehiclenumber.toUpperCase(), outtime: '-' });
     if (alreadyParked) return res.status(409).json({ success: false, message: 'Vehicle is already parked' });
 
-    const now = new Date();
+    const { time: intime, date } = getIST();
     const entry = await DailyParking.create({
       parkingId: req.user.parkingId,
       vehiclenumber: vehiclenumber.toUpperCase(),
       ownername, type,
-      date: now.toISOString().split('T')[0],
-      intime: now.toTimeString().substring(0, 5),
+      date,
+      intime,
       outtime: '-', amount: null
     });
     res.status(201).json({ success: true, message: `Vehicle ${entry.vehiclenumber} parked successfully`, data: entry });
@@ -85,8 +91,7 @@ exports.exitVehicle = async (req, res) => {
     if (record.outtime !== '-') return res.status(400).json({ success: false, message: 'Vehicle already checked out' });
 
     const parking = await Parking.findById(req.user.parkingId);
-    const now = new Date();
-    const outtime = now.toTimeString().substring(0, 5);
+    const { time: outtime } = getIST();
 
     const [inH, inM] = record.intime.split(':').map(Number);
     const [outH, outM] = outtime.split(':').map(Number);
