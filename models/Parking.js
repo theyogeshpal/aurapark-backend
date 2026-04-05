@@ -18,7 +18,8 @@ const parkingSchema = new mongoose.Schema({
   covered:        { type: Boolean, default: false },
   evcharging:     { type: Boolean, default: false },
   verification:   { type: Boolean, default: false },
-  qrCode:         { type: String, default: null },
+  upiId:          { type: String, default: '' },
+  upiName:        { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Parking', parkingSchema);

@@ -58,7 +58,7 @@ exports.getAdminParking = async (req, res) => {
 
 exports.updateAdminParking = async (req, res) => {
   try {
-    const allowed = ['parkingname', 'hourrate', 'operatinghours', 'address', 'city', 'state', 'map', 'bikespace', 'carspace', 'covered', 'evcharging', 'qrCode'];
+    const allowed = ['parkingname', 'hourrate', 'operatinghours', 'address', 'city', 'state', 'map', 'bikespace', 'carspace', 'covered', 'evcharging', 'upiId', 'upiName'];
     const update = {};
     allowed.forEach(k => { if (req.body[k] !== undefined) update[k] = req.body[k]; });
     const parking = await Parking.findByIdAndUpdate(req.user.parkingId, update, { new: true });
