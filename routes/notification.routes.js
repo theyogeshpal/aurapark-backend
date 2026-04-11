@@ -3,8 +3,11 @@ const ctrl = require('../controllers/notification.controller');
 const { verifyAdmin, verifySuperAdmin, verifyToken } = require('../middleware/auth.middleware');
 
 // SuperAdmin routes
-router.post('/',       verifySuperAdmin, ctrl.sendNotification);
-router.get('/all',     verifySuperAdmin, ctrl.getAllNotifications);
+router.post('/',              verifySuperAdmin, ctrl.sendNotification);
+router.get('/all',            verifySuperAdmin, ctrl.getAllNotifications);
+router.get('/superadmin',     verifySuperAdmin, ctrl.getSuperAdminNotifications);
+router.put('/superadmin/:id/read', verifySuperAdmin, ctrl.markSuperAdminRead);
+router.put('/superadmin/read-all', verifySuperAdmin, ctrl.markAllSuperAdminRead);
 
 // Admin routes — must be before /:id
 router.get('/admin',          verifyAdmin, ctrl.getAdminNotifications);

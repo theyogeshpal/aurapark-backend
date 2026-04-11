@@ -71,6 +71,40 @@ exports.markAdminRead = async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
+// SuperAdmin: get notifications
+exports.getSuperAdminNotifications = async (req, res) => {
+  try {
+    const saId = req.user.id;
+    const notifs = await Notification.find({ target: 'superadmin' }).sort({ createdAt: -1 }).limit(20);
+    const data = notifs.map(n => ({
+      ...n.toObject(),
+      isRead: n.readBy.some(id => id.toString() === saId)
+    }));
+    res.json({ success: true, data });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+};
+
+// SuperAdmin: mark read
+exports.markSuperAdminRead = async (req, res) => {
+  try {
+    const saObjId = new mongoose.Types.ObjectId(req.user.id);
+    await Notification.findByIdAndUpdate(req.params.id, { $addToSet: { readBy: saObjId } });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+};
+
+// SuperAdmin: mark all read
+exports.markAllSuperAdminRead = async (req, res) => {
+  try {
+    const saObjId = new mongoose.Types.ObjectId(req.user.id);
+    await Notification.updateMany(
+      { target: 'superadmin', readBy: { $ne: saObjId } },
+      { $addToSet: { readBy: saObjId } }
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+};
+
 // User: mark read
 exports.markUserRead = async (req, res) => {
   try {

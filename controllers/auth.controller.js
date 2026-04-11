@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const SuperAdmin = require('../models/SuperAdmin');
+const Notification = require('../models/Notification');
 
 const generateToken = (payload) =>
   jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
@@ -15,6 +16,16 @@ exports.register = async (req, res) => {
     if (await User.findOne({ email })) return res.status(409).json({ success: false, message: 'Email already registered' });
 
     const user = await User.create({ name, email, password: bcrypt.hashSync(password, 10), mobile: mobile || '', city: city || '' });
+
+    // Notify superadmin
+    await Notification.create({
+      title: 'New User Registered',
+      message: `${name} (${email}) has just created an account on AuraPark.`,
+      target: 'superadmin',
+      sentBy: 'system',
+      userId: user._id
+    });
+
     const { password: _, ...userData } = user.toObject();
     res.status(201).json({ success: true, message: 'Registered successfully', data: { user: userData, token: generateToken({ id: user._id, role: 'user' }) } });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
