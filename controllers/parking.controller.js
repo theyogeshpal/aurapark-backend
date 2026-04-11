@@ -1,6 +1,7 @@
 const Parking = require('../models/Parking');
 const Admin = require('../models/Admin');
 const bcrypt = require('bcryptjs');
+const { sendParkingApprovalEmail } = require('../services/email.service');
 
 // ─── PUBLIC ──────────────────────────────────────────────
 exports.getAllVerified = async (req, res) => {
@@ -86,10 +87,12 @@ exports.verifyParking = async (req, res) => {
     const parking = await Parking.findByIdAndUpdate(req.params.id, { verification: true }, { new: true });
     if (!parking) return res.status(404).json({ success: false, message: 'Parking not found' });
 
-    // Create admin account for parking owner if not already exists
+    const defaultPassword = 'admin123';
+    let adminCreated = false;
+
     const existing = await Admin.findOne({ email: parking.email });
     if (!existing) {
-      const hashed = await bcrypt.hash('admin123', 10);
+      const hashed = await bcrypt.hash(defaultPassword, 10);
       await Admin.create({
         name: parking.ownername,
         email: parking.email,
@@ -98,9 +101,24 @@ exports.verifyParking = async (req, res) => {
         parkingId: parking._id,
         city: parking.city
       });
+      adminCreated = true;
     }
 
-    res.json({ success: true, message: 'Parking verified and admin account created', data: parking });
+    // Send approval email
+    try {
+      await sendParkingApprovalEmail({
+        toEmail: parking.email,
+        ownerName: parking.ownername,
+        parkingName: parking.parkingname,
+        loginEmail: parking.email,
+        loginPassword: adminCreated ? defaultPassword : '(your existing password)',
+        adminPanelUrl: process.env.ADMIN_PANEL_URL || 'https://aurapark-admin.vercel.app'
+      });
+    } catch (emailErr) {
+      console.error('Email send failed:', emailErr.message);
+    }
+
+    res.json({ success: true, message: 'Parking verified, admin account created and email sent', data: parking });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
