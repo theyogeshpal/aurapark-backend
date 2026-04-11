@@ -104,19 +104,17 @@ exports.verifyParking = async (req, res) => {
       adminCreated = true;
     }
 
-    // Send approval email
-    try {
-      await sendParkingApprovalEmail({
-        toEmail: parking.email,
-        ownerName: parking.ownername,
-        parkingName: parking.parkingname,
-        loginEmail: parking.email,
-        loginPassword: adminCreated ? defaultPassword : '(your existing password)',
-        adminPanelUrl: process.env.ADMIN_PANEL_URL || 'https://aurapark-admin.vercel.app'
-      });
-    } catch (emailErr) {
+    // Send approval email (non-blocking)
+    sendParkingApprovalEmail({
+      toEmail: parking.email,
+      ownerName: parking.ownername,
+      parkingName: parking.parkingname,
+      loginEmail: parking.email,
+      loginPassword: adminCreated ? defaultPassword : '(your existing password)',
+      adminPanelUrl: process.env.ADMIN_PANEL_URL || 'https://aurapark-admin.vercel.app'
+    }).catch(emailErr => {
       console.error('Email send failed:', emailErr.message);
-    }
+    });
 
     res.json({ success: true, message: 'Parking verified, admin account created and email sent', data: parking });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
